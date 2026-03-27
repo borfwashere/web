@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Webscape Engine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; transition: background-color 0.4s ease;
+        }
+        
+        #canvas-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; z-index: 1;
+        }
+
+        /* UI Minimalista estilo Win98 */
+        #webscape-ui {
+            position: fixed; top: 12px; left: 12px; z-index: 100;
+            background: #c0c0c0; border: 2px outset #fff;
+            padding: 4px 8px; display: flex; gap: 8px;
+            box-shadow: 2px 2px 0 #000;
+            font-family: 'Tahoma', 'Geneva', sans-serif;
+        }
+
+        .ui-label {
+            font-size: 11px; color: #000; align-self: center;
+            font-weight: bold; text-transform: uppercase;
+        }
+
+        .mode-btn {
+            background: #c0c0c0; border: 2px outset #fff;
+            padding: 3px 10px; font-size: 11px; cursor: pointer;
+            color: #000; outline: none;
+        }
+
+        .mode-btn:active { border: 2px inset #fff; }
+        .mode-btn.active { 
+            background: #d0d0d0; border: 2px inset #fff; 
+            color: #000080; 
+        }
+    </style>
+</head>
+<body id="main-body" style="background-color: #000;">
+
+    <div id="webscape-ui">
+        <span class="ui-label">Web Mode:</span>
+        <button id="btn-dark" class="mode-btn active" onclick="setEffect('dark')">Dark</button>
+        <button id="btn-color" class="mode-btn" onclick="setEffect('color')">Color</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        let scene, camera, renderer, mesh, matDark, matColor;
+        let mouseX = 0, mouseY = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Geometría compartida (Icosaedro de alta resolución)
+            const geometry = new THREE.IcosahedronGeometry(2, 20);
+
+            // MATERIAL DARK (de web.html)
+            matDark = new THREE.MeshNormalMaterial({ wireframe: true, flatShading: true });
+
+            // MATERIAL COLOR (de webcolor.html con shader inyectado)
+            matColor = new THREE.MeshNormalMaterial({ wireframe: true });
+            matColor.onBeforeCompile = (shader) => {
+                shader.uniforms.uTime = { value: 0 };
+                shader.fragmentShader = `uniform float uTime;\n` + shader.fragmentShader;
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    'gl_FragColor = vec4( packNormalToRGB( normal ), opacity );',
+                    `
+                    vec3 dN = normal;
+                    dN.x += sin(uTime * 0.5);
+                    dN.y += cos(uTime * 0.5);
+                    gl_FragColor = vec4( packNormalToRGB( dN ), opacity );
+                    `
+                );
+                matColor.userData.shader = shader;
+            };
+
+            mesh = new THREE.Mesh(geometry, matDark);
+            scene.add(mesh);
+
+            mesh.geometry.userData = { originalPositions: geometry.attributes.position.array.slice() };
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) - 0.5;
+                mouseY = (e.clientY / window.innerHeight) - 0.5;
+            });
+        }
+
+        function setEffect(mode) {
+            const body = document.getElementById('main-body');
+            const bDark = document.getElementById('btn-dark');
+            const bColor = document.getElementById('btn-color');
+
+            if (mode === 'dark') {
+                mesh.material = matDark;
+                body.style.backgroundColor = "#000";
+                bDark.classList.add('active');
+                bColor.classList.remove('active');
+            } else {
+                mesh.material = matColor;
+                body.style.backgroundColor = "#fff";
+                bColor.classList.add('active');
+                bDark.classList.remove('active');
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.002;
+
+            if (mesh.material.userData.shader) {
+                mesh.material.userData.shader.uniforms.uTime.value = time;
+            }
+
+            mesh.rotation.x += 0.005;
+            mesh.rotation.y += 0.01;
+
+            const positions = mesh.geometry.attributes.position.array;
+            const originals = mesh.geometry.userData.originalPositions;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const amp = 0.5 + (mouseX * 2);
+                positions[i]     = originals[i]     + Math.sin(time + originals[i+1]) * amp;
+                positions[i + 1] = originals[i + 1] + Math.cos(time + originals[i]) * amp;
+                positions[i + 2] = originals[i + 2] + Math.sin(time + originals[i+2]) * amp;
+            }
+            mesh.geometry.attributes.position.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
