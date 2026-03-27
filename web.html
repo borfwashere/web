@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vaina Rara Core</title>
+    <style>
+        /* RESET Y ESTILO BASE */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        /* EL LIENZO 3D (Fondo Interactivo) */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- LÓGICA DE ARTE GENERATIVO (ESTILO MCKELVIE) ---
+        let scene, camera, renderer, mesh;
+        let mouseX = 0, mouseY = 0;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Crear una geometría "deformable" (Icosaedro complejo)
+            const geometry = new THREE.IcosahedronGeometry(2, 20);
+            
+            // Material con estética Glitch / Wireframe
+            const material = new THREE.MeshNormalMaterial({ 
+                wireframe: true,
+                flatShading: true 
+            });
+
+            mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            // Guardar posiciones originales para deformación
+            mesh.geometry.userData = { originalPositions: geometry.attributes.position.array.slice() };
+
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) - 0.5;
+                mouseY = (e.clientY / window.innerHeight) - 0.5;
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotación base
+            mesh.rotation.x += 0.005;
+            mesh.rotation.y += 0.01;
+
+            // Deformación de vértices (Efecto "Vince McKelvie")
+            const positions = mesh.geometry.attributes.position.array;
+            const originals = mesh.geometry.userData.originalPositions;
+            const time = Date.now() * 0.002;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                // Usamos Seno y Coseno + Posición del Mouse para distorsionar
+                const amp = 0.5 + (mouseX * 2);
+                positions[i]     = originals[i]     + Math.sin(time + originals[i+1]) * amp;
+                positions[i + 1] = originals[i + 1] + Math.cos(time + originals[i]) * amp;
+                positions[i + 2] = originals[i + 2] + Math.sin(time + originals[i+2]) * amp;
+            }
+            mesh.geometry.attributes.position.needsUpdate = true;
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
