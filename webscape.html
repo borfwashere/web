@@ -2,69 +2,69 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Webscape Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Webscape Engine - Secure Core</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; transition: background-color 0.4s ease;
-            user-select: none; /* Evita que seleccionen texto */
+            user-select: none; -webkit-user-select: none;
+            touch-action: none;
         }
-        
-        #canvas-container {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%; z-index: 1;
-        }
-
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
         #webscape-ui {
-            position: fixed; top: 12px; left: 12px; z-index: 100;
+            position: fixed; top: 10px; left: 10px; z-index: 100;
             background: #c0c0c0; border: 2px outset #fff;
-            padding: 4px 8px; display: flex; gap: 8px;
+            padding: 6px; display: flex; gap: 6px;
             box-shadow: 2px 2px 0 #000;
-            font-family: 'Tahoma', 'Geneva', sans-serif;
+            font-family: 'Tahoma', sans-serif;
         }
-
-        .ui-label {
-            font-size: 11px; color: #000; align-self: center;
-            font-weight: bold; text-transform: uppercase;
-        }
-
-        .mode-btn {
-            background: #c0c0c0; border: 2px outset #fff;
-            padding: 3px 10px; font-size: 11px; cursor: pointer;
-            color: #000; outline: none;
-        }
-
-        .mode-btn:active { border: 2px inset #fff; }
-        .mode-btn.active { 
-            background: #d0d0d0; border: 2px inset #fff; 
-            color: #000080; 
-        }
+        .ui-label { font-size: 10px; color: #000; align-self: center; font-weight: bold; }
+        .mode-btn { background: #c0c0c0; border: 2px outset #fff; padding: 4px 8px; font-size: 10px; cursor: pointer; }
+        .mode-btn.active { background: #d0d0d0; border: 2px inset #fff; color: #000080; }
     </style>
 </head>
-<body id="main-body" style="background-color: #000;" oncontextmenu="return false;">
+<body id="main-body" style="background-color: #000;">
 
     <div id="webscape-ui">
-        <span class="ui-label">Web Mode:</span>
-        <button id="btn-dark" class="mode-btn active" onclick="setEffect('dark')">Dark</button>
-        <button id="btn-color" class="mode-btn" onclick="setEffect('color')">Color</button>
+        <span class="ui-label">SECURE MODE:</span>
+        <button id="btn-dark" class="mode-btn active" onclick="setEffect('dark')">DARK</button>
+        <button id="btn-color" class="mode-btn" onclick="setEffect('color')">COLOR</button>
     </div>
 
     <div id="canvas-container"></div>
 
     <script>
-        // --- SCRIPT DE SEGURIDAD BORSEC STATION ---
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) {
-            if (e.keyCode == 123) return false; // F12
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Ctrl+Shift+I
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false; // Ctrl+Shift+C
-            if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
-            if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U (Ver código)
-        };
+        /** * --- PROTOCOLO DE SEGURIDAD REFORZADO ---
+         * Bloquea clic derecho, F12, Ctrl+Shift+I, Ctrl+U
+         */
+        (function() {
+            // Bloqueo estricto de menú contextual
+            document.addEventListener('contextmenu', e => e.preventDefault());
+
+            // Bloqueo de combinaciones de teclas de inspección
+            document.addEventListener('keydown', e => {
+                if (
+                    e.key === "F12" ||
+                    (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
+                    (e.ctrlKey && e.key === "u") ||
+                    (e.ctrlKey && e.key === "s")
+                ) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Trampa de Debugger: Si abren la consola, el motor intenta pausar su ejecución
+            setInterval(() => {
+                (function() { return false; }['constructor']('debugger')());
+            }, 100);
+        })();
 
         let scene, camera, renderer, mesh, matDark, matColor;
-        let mouseX = 0, mouseY = 0;
+        let targetX = 0, targetY = 0;
+        let currentX = 0, currentY = 0;
 
         function init() {
             scene = new THREE.Scene();
@@ -72,29 +72,29 @@
             camera.position.z = 5;
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            
-            // Forzamos dimensiones tipo 'long' (enteros)
-            const w = Math.floor(window.innerWidth);
-            const h = Math.floor(window.innerHeight);
-            renderer.setSize(w, h);
-            
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            const geometry = new THREE.IcosahedronGeometry(2, 20);
+            const geometry = new THREE.IcosahedronGeometry(2, 20); 
 
             matDark = new THREE.MeshNormalMaterial({ wireframe: true, flatShading: true });
             matColor = new THREE.MeshNormalMaterial({ wireframe: true });
             
             matColor.onBeforeCompile = (shader) => {
                 shader.uniforms.uTime = { value: 0 };
-                shader.fragmentShader = `uniform float uTime;\n` + shader.fragmentShader;
+                shader.vertexShader = `varying vec3 vLPos;\n` + shader.vertexShader;
+                shader.vertexShader = shader.vertexShader.replace(`#include <begin_vertex>`, `#include <begin_vertex>\nvLPos = position;`);
+                shader.fragmentShader = `uniform float uTime;\nvarying vec3 vLPos;\n` + shader.fragmentShader;
                 shader.fragmentShader = shader.fragmentShader.replace(
                     'gl_FragColor = vec4( packNormalToRGB( normal ), opacity );',
                     `
-                    vec3 dN = normal;
-                    dN.x += sin(uTime * 0.5);
-                    dN.y += cos(uTime * 0.5);
-                    gl_FragColor = vec4( packNormalToRGB( dN ), opacity );
+                    vec3 vN = normal;
+                    float angle = uTime * 0.4 + length(vLPos) * 0.6;
+                    float s = sin(angle); float c = cos(angle);
+                    mat3 rot = mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0);
+                    vN = rot * vN;
+                    gl_FragColor = vec4( packNormalToRGB( normalize(vN) ), opacity );
                     `
                 );
                 matColor.userData.shader = shader;
@@ -104,57 +104,51 @@
             scene.add(mesh);
             mesh.geometry.userData = { originalPositions: geometry.attributes.position.array.slice() };
 
-            window.addEventListener('resize', () => {
-                const width = Math.floor(window.innerWidth);
-                const height = Math.floor(window.innerHeight);
-                camera.aspect = width / height;
-                camera.updateProjectionMatrix();
-                renderer.setSize(width, height);
-            });
+            const handleMove = (x, y) => {
+                targetX = (x / window.innerWidth) - 0.5;
+                targetY = (y / window.innerHeight) - 0.5;
+            };
 
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX / window.innerWidth) - 0.5;
-                mouseY = (e.clientY / window.innerHeight) - 0.5;
+            window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => {
+                if(e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: false });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
             });
         }
 
         function setEffect(mode) {
             const body = document.getElementById('main-body');
-            const bDark = document.getElementById('btn-dark');
-            const bColor = document.getElementById('btn-color');
-
-            if (mode === 'dark') {
-                mesh.material = matDark;
-                body.style.backgroundColor = "#000";
-                bDark.classList.add('active');
-                bColor.classList.remove('active');
-            } else {
-                mesh.material = matColor;
-                body.style.backgroundColor = "#fff";
-                bColor.classList.add('active');
-                bDark.classList.remove('active');
-            }
+            const isDark = mode === 'dark';
+            mesh.material = isDark ? matDark : matColor;
+            body.style.backgroundColor = isDark ? "#000" : "#fff";
+            document.getElementById('btn-dark').classList.toggle('active', isDark);
+            document.getElementById('btn-color').classList.toggle('active', !isDark);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            const time = Date.now() * 0.002;
+            const time = Date.now() * 0.001;
+            if (matColor.userData.shader) matColor.userData.shader.uniforms.uTime.value = time;
 
-            if (mesh.material.userData.shader) {
-                mesh.material.userData.shader.uniforms.uTime.value = time;
-            }
+            currentX += (targetX - currentX) * 0.05;
+            currentY += (targetY - currentY) * 0.05;
 
-            mesh.rotation.x += 0.005;
-            mesh.rotation.y += 0.01;
+            mesh.rotation.x += 0.001;
+            mesh.rotation.y += 0.002;
 
-            const positions = mesh.geometry.attributes.position.array;
-            const originals = mesh.geometry.userData.originalPositions;
+            const pos = mesh.geometry.attributes.position.array;
+            const orig = mesh.geometry.userData.originalPositions;
 
-            for (let i = 0; i < positions.length; i += 3) {
-                const amp = 0.5 + (mouseX * 2);
-                positions[i]     = originals[i]     + Math.sin(time + originals[i+1]) * amp;
-                positions[i + 1] = originals[i + 1] + Math.cos(time + originals[i]) * amp;
-                positions[i + 2] = originals[i + 2] + Math.sin(time + originals[i+2]) * amp;
+            for (let i = 0; i < pos.length; i += 3) {
+                const amp = 0.3 + (currentX * 1.8);
+                pos[i]     = orig[i]     + Math.sin(time + orig[i+1]) * amp;
+                pos[i + 1] = orig[i + 1] + Math.cos(time + orig[i]) * amp;
+                pos[i + 2] = orig[i + 2] + Math.sin(time + orig[i+2]) * amp;
             }
             mesh.geometry.attributes.position.needsUpdate = true;
             renderer.render(scene, camera);
